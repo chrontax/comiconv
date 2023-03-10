@@ -1,0 +1,27 @@
+[package]
+name = "comiconv"
+version = "0.1.0"
+authors = ["Chrontax"]
+description = "A command line tool to convert comic book archives to other formats."
+edition = "2021"
+readme = "README.md"
+homepage = "https://github.com/chrontax/comiconv"
+repository = "https://github.com/chrontax/comiconv"
+license = "GPL-2.0"
+keywords = ["comic", "archive", "convert", "cbz", "cbr", "cb7", "cbt", "webp", "avif", "jpeg", "png"]
+categories = ["command-line-utilities"]
+
+[dependencies]
+image = { version = "0.24.5", features = ["avif", "webp-encoder"] }
+num_cpus = "1.15.0"
+sevenz-rust = "0.2.8"
+tar = "0.4.38"
+unrar = "0.4.4"
+zip = "0.6.4"
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "comiconv"
+path = "src/main.rs"
