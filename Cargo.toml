@@ -16,8 +16,8 @@ image = { version = "0.24.5", features = ["avif", "webp-encoder"] }
 num_cpus = "1.15.0"
 sevenz-rust = "0.2.8"
 tar = "0.4.38"
-unrar = "0.4.4"
 zip = "0.6.4"
+rar = "0.2.0"
 
 [lib]
 path = "src/lib.rs"

@@ -10,7 +10,7 @@ use std::{
 use num_cpus;
 use tar;
 use sevenz_rust;
-use unrar;
+use rar;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Converter {
@@ -84,6 +84,11 @@ impl Converter {
                     archive_type = Archive::CB7;
                     sevenz_rust::decompress_file(file, "tmp").unwrap();
                 },
+                "cbr" | "rar" => {
+                    archive_type = Archive::CBR;
+                    rar::Archive::extract_all(file, "tmp", "").unwrap();
+                    ()
+                },
                 _ => {
                     return Err("Fiel not recognized")
                 }
@@ -95,7 +100,7 @@ impl Converter {
             },
             Archive::CB7 => sevenz_rust::decompress_file(file, "tmp").unwrap(),
             Archive::CBR => {
-                unrar::Archive::new(file.to_string()).extract_to("tmp".to_string()).unwrap().process().unwrap();
+                rar::Archive::extract_all(file, "tmp", "").unwrap();
                 ()
             },
         }
