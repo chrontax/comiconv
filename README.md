@@ -1,12 +1,24 @@
 # Comiconv
+
 Comic book converter written in rust.
 
+## **Currently decoding avif images is broken, help is welcome**
+
 ## Features
+
 * reads RAR/CBR, 7Z/CB7, TAR/CBT and ZIP/CBZ
 * saves in the same archive format as input (except RAR for which output is ZIP)
 * can convert images to JPEG, PNG, WEBP and AVIF
 
+## Installation
+
+You can install comiconv through cargo
+```bash
+cargo install comiconv
+```
+
 ## Usage
+
 ```bash
 Usage: comiconv <files> [options]
 
@@ -22,6 +34,7 @@ Options:
 ```
 
 ## Examples
+
 Convert using default settings
 ```bash
 comiconv path/to/file

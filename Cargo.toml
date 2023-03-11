@@ -18,6 +18,8 @@ sevenz-rust = "0.2.8"
 tar = "0.4.38"
 zip = "0.6.4"
 rar = "0.2.0"
+indicatif = "0.17.3"
+walkdir = "2.3.2"
 
 [lib]
 path = "src/lib.rs"

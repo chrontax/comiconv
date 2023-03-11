@@ -24,7 +24,7 @@ pub fn avif(path: &Path, speed: u8, quality: u8) {
         .expect("Failed to open image")
         .decode()
         .expect("Failed to decode image")
-        .to_rgba8();
+        .to_rgb8();
 
     let mut buf = Vec::new();
     AvifEncoder::new_with_speed_quality(&mut buf, speed, quality)
@@ -32,7 +32,7 @@ pub fn avif(path: &Path, speed: u8, quality: u8) {
             &img,
             img.width(),
             img.height(),
-            ColorType::Rgba8)
+            ColorType::Rgb8)
         .expect("Failed to encode image");
 
     let outpath = format!(
@@ -70,7 +70,7 @@ pub fn png(path: &Path, compression: CompressionType) {
         .expect("Failed to open image")
         .decode()
         .expect("Failed to decode image")
-        .to_rgba8();
+        .to_rgb8();
 
     let mut buf = Vec::new();
     PngEncoder::new_with_quality(&mut buf, compression, FilterType::Adaptive)
@@ -78,7 +78,7 @@ pub fn png(path: &Path, compression: CompressionType) {
             &img,
             img.width(),
             img.height(),
-            ColorType::Rgba8)
+            ColorType::Rgb8)
         .expect("Failed to encode image");
 
     let outpath = format!(
@@ -93,7 +93,7 @@ pub fn webp(path: &Path, quality: WebPQuality) {
         .expect("Failed to open image")
         .decode()
         .expect("Failed to decode image")
-        .to_rgba8();
+        .to_rgb8();
 
     let mut buf = Vec::new();
     WebPEncoder::new_with_quality(&mut buf, quality)
@@ -101,7 +101,7 @@ pub fn webp(path: &Path, quality: WebPQuality) {
             &img,
             img.width(),
             img.height(),
-            ColorType::Rgba8)
+            ColorType::Rgb8)
         .expect("Failed to encode image");
 
     let outpath = format!(

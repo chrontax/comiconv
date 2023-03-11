@@ -4,13 +4,15 @@ use image::codecs::{png::CompressionType, webp::WebPQuality};
 use std::{
     fs,
     path::PathBuf,
-    sync::mpsc::{channel, Sender},
+    sync::mpsc::{channel, Sender, Receiver},
     thread::JoinHandle,
 };
 use num_cpus;
 use tar;
 use sevenz_rust;
 use rar;
+use indicatif::ProgressBar;
+use walkdir::WalkDir;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Converter {
@@ -105,11 +107,12 @@ impl Converter {
             },
         }
 
-        let mut threads: Vec<(JoinHandle<()>, Sender<PathBuf>, Sender<Converter>)> = vec![];
+        let mut threads: Vec<(JoinHandle<()>, Sender<PathBuf>, Sender<Converter>, Receiver<()>)> = vec![];
 
         for _ in 0..self.threads {
             let (tx, rx) = channel::<PathBuf>();
             let (tx2, rx2) = channel::<Converter>();
+            let (tx3, rx3) = channel::<()>();
             threads.push((
                 std::thread::spawn(move || {
                     let args = rx2.recv().unwrap();
@@ -122,9 +125,11 @@ impl Converter {
                                     match args.format {
                                         Format::Avif => {
                                             enc::avif(&path, args.speed.clamp(0, 10), args.quality.clamp(0, 100));
+                                            tx3.send(()).unwrap();
                                         }
                                         Format::Jpeg => {
                                             enc::jpeg(&path, args.quality.clamp(0, 100));
+                                            tx3.send(()).unwrap();
                                         }
                                         Format::Png => {
                                             enc::png(
@@ -135,6 +140,7 @@ impl Converter {
                                                     _ => CompressionType::Best,
                                                 },
                                             );
+                                            tx3.send(()).unwrap();
                                         }
                                         Format::Webp => {
                                             enc::webp(
@@ -144,6 +150,7 @@ impl Converter {
                                                     _ => WebPQuality::lossless(),
                                                 },
                                             );
+                                            tx3.send(()).unwrap();
                                         }
                                     }
                                 }
@@ -154,25 +161,43 @@ impl Converter {
                 }),
                 tx,
                 tx2,
+                rx3
             ));
         }
 
-        for (_, _, tx) in &mut threads {
+        for (_, _, tx, _) in &mut threads {
             tx.send(*self).unwrap();
         }
 
+        let pb = ProgressBar::new(WalkDir::new("tmp").into_iter().filter(|e| e.as_ref().unwrap().path().is_file()).count() as u64);
         let mut i = 0;
-        for entry in fs::read_dir("tmp").expect("Failed to read tmp directory") {
+        for entry in WalkDir::new("tmp") {
             let entry = entry.expect("Failed to read entry");
             let path = entry.path();
 
-            let (_, tx, _) = &mut threads[i];
-            tx.send(path).unwrap();
-            i = (i + 1) % threads.len();
+            if path.is_file() {
+                let (_, tx, _, _) = &mut threads[i];
+                tx.send(path.to_path_buf()).unwrap();
+                i = (i + 1) % threads.len();
+            }
         }
 
-        for (_, tx, _) in &mut threads {
+        for (_, tx, _, _) in &mut threads {
             tx.send(PathBuf::new()).unwrap()
+        }
+
+        loop {
+            for (_, _, _, rx) in &mut threads {
+                if rx.recv().is_ok() {
+                    pb.inc(1);
+                }
+            }
+            if pb.position() == pb.length().unwrap() {
+                pb.finish();
+                println!("Converted \"{}\"", file);
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(50));
         }
 
         loop {
@@ -186,11 +211,13 @@ impl Converter {
             std::thread::sleep(std::time::Duration::from_millis(100));
         }
 
-        for entry in fs::read_dir("tmp").expect("Failed to read tmp directory") {
+        for entry in WalkDir::new("tmp") {
             let entry = entry.expect("Failed to read entry");
             let path = entry.path();
-            if !path.to_str().unwrap().ends_with(self.format.to_str()) {
-                fs::remove_file(path).expect("Failed to remove file");
+            if path.is_file() {
+                if !path.to_str().unwrap().ends_with(self.format.to_str()) {
+                    fs::remove_file(path).expect("Failed to remove file");
+                }
             }
         }
 
