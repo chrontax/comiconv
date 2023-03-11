@@ -1,6 +1,6 @@
 [package]
 name = "comiconv"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["Chrontax"]
 description = "A command line tool to convert comic book archives to other formats."
 edition = "2021"
