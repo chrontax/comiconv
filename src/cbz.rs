@@ -24,7 +24,7 @@ pub fn extract(dir: &str, file: &str) {
 
 pub fn pack(dir: &str, name: &str) {
     let mut archive = ZipWriter::new(fs::File::create(name).expect("Failed to create file"));
-    for entry in WalkDir::new(dir) {
+    for entry in WalkDir::new(dir).into_iter().skip(1) {
         let entry = entry.unwrap();
         let path = entry.path();
         if path.is_dir() {

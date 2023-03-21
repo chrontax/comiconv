@@ -1,6 +1,6 @@
 [package]
 name = "comiconv"
-version = "0.1.2"
+version = "0.1.3"
 authors = ["Chrontax"]
 description = "A command line tool to convert comic book archives to other formats."
 edition = "2021"
@@ -20,6 +20,7 @@ zip = "0.6.4"
 rar = "0.2.0"
 indicatif = "0.17.3"
 walkdir = "2.3.2"
+libavif-image = "0.10.0"
 
 [lib]
 path = "src/lib.rs"

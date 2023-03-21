@@ -2,8 +2,6 @@
 
 Comic book converter written in rust.
 
-## **Currently decoding avif images is broken, help is welcome**
-
 ## Features
 
 * reads RAR/CBR, 7Z/CB7, TAR/CBT and ZIP/CBZ

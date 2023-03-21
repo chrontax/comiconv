@@ -227,7 +227,7 @@ impl Converter {
             Archive::CBZ => cbz::pack("tmp", file),
             Archive::CB7 => sevenz_rust::compress_to_path("tmp", file).unwrap(),
             Archive::CBR => {
-                let mut f: String;
+                let f: String;
                 if file.ends_with(".cbr") { f = file.replace(".cbr", ".cbz") }
                 else if file.ends_with(".rar") { f = file.replace(".rar", ".cbz") }
                 else { f = file.to_string() }
