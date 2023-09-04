@@ -1,13 +1,13 @@
 [package]
 name = "comiconv"
-version = "0.1.3"
+version = "0.1.4"
 authors = ["Chrontax"]
 description = "A command line tool to convert comic book archives to other formats."
 edition = "2021"
 readme = "README.md"
 homepage = "https://github.com/chrontax/comiconv"
 repository = "https://github.com/chrontax/comiconv"
-license = "GPL-2.0"
+license = "Apache-2.0 OR MIT"
 keywords = ["comic", "convert", "cbz", "cbr", "cb7"]
 categories = ["command-line-utilities"]
 
