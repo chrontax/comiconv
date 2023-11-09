@@ -4,8 +4,8 @@ Comic book converter written in rust.
 
 ## Features
 
-* reads RAR/CBR, 7Z/CB7, TAR/CBT and ZIP/CBZ
-* saves in the same archive format as input (except RAR for which output is ZIP)
+* reads 7Z/CB7, TAR/CBT and ZIP/CBZ
+* saves in the same archive format as input
 * can convert images to JPEG, PNG, WEBP and AVIF
 
 ## Installation
