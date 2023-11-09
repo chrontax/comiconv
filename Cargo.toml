@@ -1,30 +1,29 @@
 [package]
 name = "comiconv"
-version = "0.1.4"
+version = "0.2.0"
+edition = "2021"
 authors = ["Chrontax"]
 description = "A command line tool to convert comic book archives to other formats."
-edition = "2021"
 readme = "README.md"
 homepage = "https://github.com/chrontax/comiconv"
 repository = "https://github.com/chrontax/comiconv"
 license = "Apache-2.0 OR MIT"
-keywords = ["comic", "convert", "cbz", "cbr", "cb7"]
+keywords = ["comic", "convert", "cbz", "cbt", "cb7"]
 categories = ["command-line-utilities"]
 
 [dependencies]
-image = { version = "0.24.5", features = ["avif", "webp-encoder"] }
-num_cpus = "1.15.0"
-sevenz-rust = "0.2.8"
-tar = "0.4.38"
-zip = "0.6.4"
-rar = "0.2.0"
-indicatif = "0.17.3"
-walkdir = "2.3.2"
-libavif-image = "0.10.0"
+image = { version = "0.24.7", default-features = false, features = ["png", "webp", "webp-encoder", "avif", "avif-encoder", "jpeg"] }
+indicatif = "0.17.7"
+infer = { version = "0.15.0", default-features = false }
+libavif-image = { version = "0.11.0", default-features = false, features = ["codec-dav1d"] }
+rayon = "1.8.0"
+sevenz-rust = "0.5.3"
+tar = "0.4.40"
+zip = { version = "0.6.6", default-features = false, features = ["deflate"] }
 
 [lib]
 path = "src/lib.rs"
 
 [[bin]]
-name = "comiconv"
 path = "src/main.rs"
+name = "comiconv"

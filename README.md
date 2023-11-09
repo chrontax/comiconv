@@ -27,8 +27,6 @@ Options:
   -s, --speed		Set speed 0 (Slowest) - 10 (Fastest) (0-2 for png) default: 3
   -q, --quality		Set quality 0 (Worst) - 100 (Best) (101 for lossless webp) default: 30
   -f, --format		Set format (avif, webp, jpeg, png) default: avif
-  -a, --archive		Set archive type (cbz, cbr, cb7, cbt) default: detects from file extension
-  -t, --threads		Set number of threads default: number of cpus
 ```
 
 ## Examples
@@ -38,7 +36,7 @@ Convert using default settings
 comiconv path/to/file
 ```
 
-Convert to jpeg with quality 80 and cbz archive
+Convert to jpeg with quality 80
 ```bash
-comiconv paht/to/file -f jpeg -q 80 -a cbz
+comiconv paht/to/file -f jpeg -q 80
 ```

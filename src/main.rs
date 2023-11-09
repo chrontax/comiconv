@@ -1,8 +1,8 @@
 use comiconv::*;
 
 fn main() {
-    let argss = std::env::args().collect::<Vec<String>>();
-    if argss.len() < 2 {
+    let args = std::env::args().collect::<Vec<String>>();
+    if args.len() < 2 {
         println!("No file specified. Use --help or -h for help");
         return;
     }
@@ -11,9 +11,9 @@ fn main() {
     let mut converter = Converter::default();
 
     let mut skip = false;
-    for i in 1..argss.len() {
+    for i in 1..args.len() {
         if skip { skip = false; continue }
-        match argss[i].as_str() {
+        match args[i].as_str() {
             "-h" | "--help" => {
                 print_help();
                 return;
@@ -23,23 +23,24 @@ fn main() {
                 return;
             },
             "-s" | "--speed" => {
-                converter.speed = argss[i+1].parse::<u8>().unwrap();
+                converter.speed = args[i+1].parse::<u8>().unwrap();
                 skip = true;
             },
             "-q" | "--quality" => {
-                converter.quality = argss[i+1].parse::<u8>().unwrap();
+                converter.quality = args[i+1].parse::<u8>().unwrap();
                 skip = true;
             },
             "-f" | "--format" => {
-                converter.format = Format::from_str(&argss[i+1]).unwrap();
-                skip = true;
-            },
-            "-a" | "--archive" => {
-                converter.archive = Archive::from_str(&argss[i+1]).unwrap();
-                skip = true;
-            },
-            "-t" | "--threads" => {
-                converter.threads = argss[i+1].parse::<u8>().unwrap();
+                converter.format = match args[i].as_str() {
+                    "avif" => Format::Avif,
+                    "webp" => Format::Webp,
+                    "jpeg" => Format::Jpeg,
+                    "png" => Format::Png,
+                    _ => {
+                        println!("Invalid format. Use --help or -h for help");
+                        return;
+                    }
+                };
                 skip = true;
             },
             other => files.push(other),
@@ -47,8 +48,9 @@ fn main() {
     }
 
     for file in files.iter() {
-        converter.convert(file).unwrap();
+        converter.convert_file(file);
     }
+    println!("Done!");
 }
 
 fn print_help() {
@@ -59,8 +61,6 @@ fn print_help() {
     println!("  -h, --help\t\tPrint this help message");
     println!("  -v, --version\t\tPrint version");
     println!("  -s, --speed\t\tSet speed 0 (Slowest) - 10 (Fastest) (0-2 for png) default: 3");
-    println!("  -q, --quality\t\tSet quality 0 (Worst) - 100 (Best) (101 for lossless webp) default: 30");
+    println!("  -q, --quality\t\tSet quality 0 (Worst) - 100 (Best) default: 30");
     println!("  -f, --format\t\tSet format (avif, webp, jpeg, png) default: avif");
-    println!("  -a, --archive\t\tSet archive type (cbz, cbr, cb7, cbt) default: detects from file extension");
-    println!("  -t, --threads\t\tSet number of threads default: number of cpus");
 }
