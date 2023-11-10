@@ -12,15 +12,18 @@ use infer::get;
 use libavif_image::{is_avif, read as read_avif};
 use rayon::spawn;
 use sevenz_rust::{Password, SevenZReader, SevenZWriter};
+use sha2::{Digest, Sha256};
 use std::{
     fs::{rename, File},
     io::{Cursor, Read, Write},
+    net::{TcpStream, Shutdown},
     sync::mpsc::{channel, Sender},
+    time::Duration,
 };
 use tar::{Archive as TarArchive, Builder};
 use zip::{ZipArchive, ZipWriter};
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum Format {
     Jpeg,
     Png,
@@ -28,7 +31,7 @@ pub enum Format {
     Avif,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct Converter {
     pub quality: u8,
     pub speed: u8,
@@ -59,34 +62,181 @@ impl Converter {
         if !self.quiet {
             println!("Converting {}...", file);
         }
-        let data = self.convert(&buf);
+        let data = self.convert(&buf, None);
         if self.backup {
             rename(file, format!("{}.bak", file)).unwrap();
         }
         File::create(file).unwrap().write_all(&data).unwrap();
     }
 
-    pub fn convert(mut self, buf: &[u8]) -> Vec<u8> {
+    pub fn convert_file_online(self, file: &str, addr: &str) {
+        let buf = {
+            let mut buf = Vec::new();
+            File::open(file).unwrap().read_to_end(&mut buf).unwrap();
+            buf
+        };
+        if !self.quiet {
+            println!("Converting {}...", file);
+        }
+        let data = self.convert_online(&buf, addr);
+        if self.backup {
+            rename(file, format!("{}.bak", file)).unwrap();
+        }
+        File::create(file).unwrap().write_all(&data).unwrap();
+    }
+
+    pub fn convert(mut self, buf: &[u8], status_stream: Option<&mut TcpStream>) -> Vec<u8> {
         self.speed = self.speed.clamp(0, 10);
         self.quality = self.quality.clamp(0, 100);
         match get(&buf).unwrap().extension() {
-            "zip" => self.convert_zip(buf),
-            "7z" => self.convert_7z(buf),
-            "tar" => self.convert_tar(buf),
+            "zip" => self.convert_zip(buf, status_stream),
+            "7z" => self.convert_7z(buf, status_stream),
+            "tar" => self.convert_tar(buf, status_stream),
             _ => panic!("Unsupported archive format"),
         }
     }
 
-    fn convert_zip(self, buf: &[u8]) -> Vec<u8> {
+    pub fn convert_online(mut self, buf: &[u8], addr: &str) -> Vec<u8> {
+        self.speed = self.speed.clamp(0, 10);
+        self.quality = self.quality.clamp(0, 100);
+        let mut stream = TcpStream::connect(addr).unwrap();
+        stream.set_nodelay(true).unwrap();
+        stream
+            .set_read_timeout(Some(Duration::from_secs(10)))
+            .unwrap();
+        stream.write_all(b"comi").unwrap();
+        {
+            let mut buf = [0; 4];
+            stream.read_exact(&mut buf).unwrap();
+            if &buf != b"conv" {
+                panic!("Invalid server response");
+            }
+        }
+        let format = match self.format {
+            Format::Avif => b'A',
+            Format::Webp => b'W',
+            Format::Png => b'P',
+            Format::Jpeg => b'J',
+        };
+        let mut left = buf.len();
+        {
+            let mut buf = [0; 8];
+            buf[0] = format;
+            buf[1] = self.speed;
+            buf[2] = self.quality;
+            buf[4..].copy_from_slice(&(left as u32).to_be_bytes());
+            stream.write_all(&buf).unwrap();
+        }
+        let hash = {
+            let mut hasher = Sha256::new();
+            hasher.update(buf);
+            hasher.finalize()
+        };
+        stream.write_all(&hash).unwrap();
+        let mut sent = 0;
+        let pb = if self.quiet {
+            ProgressBar::hidden()
+        } else {
+            ProgressBar::new(left as u64)
+        };
+        pb.set_style(
+            ProgressStyle::default_bar()
+                .template("Upload   [{elapsed_precise}] [{bar:40.cyan/blue}] {bytes}/{total_bytes} ({eta})")
+                .unwrap()
+                .progress_chars("=>-"),
+        );
+        while left > 0 {
+            let size = left.min(1024 * 1024);
+            stream.write_all(&buf[sent..sent + size]).unwrap();
+            let mut buf = [0; 2];
+            stream.read_exact(&mut buf).unwrap();
+            if &buf != b"ok" {
+                panic!("Invalid server response");
+            }
+            sent += size;
+            left = left.saturating_sub(size);
+            pb.inc(size as u64);
+        }
+        pb.finish();
+        let mut left = {
+            let mut buf = [0; 4];
+            stream.read_exact(&mut buf).unwrap();
+            u32::from_be_bytes(buf)
+        };
+        let pb = if self.quiet {
+            ProgressBar::hidden()
+        } else {
+            ProgressBar::new(left as u64)
+        };
+        pb.set_style(
+            ProgressStyle::default_bar()
+                .template("Convert  [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta})")
+                .unwrap()
+                .progress_chars("=>-"),
+        );
+        while left > 0 {
+            let response = {
+                let mut buf = [0; 4];
+                stream.read_exact(&mut buf).unwrap();
+                buf
+            };
+            if &response != b"plus" {
+                panic!("Invalid server response");
+            }
+            pb.inc(1);
+            left -= 1;
+        }
+        pb.finish();
+        let mut left = {
+            let mut buf = [0; 4];
+            stream.read_exact(&mut buf).unwrap();
+            u32::from_be_bytes(buf)
+        };
+        let hash = {
+            let mut buf = [0; 32];
+            stream.read_exact(&mut buf).unwrap();
+            buf
+        };
+        let pb = if self.quiet {
+            ProgressBar::hidden()
+        } else {
+            ProgressBar::new(left as u64)
+        };
+        pb.set_style(
+            ProgressStyle::default_bar()
+                .template("Download [{elapsed_precise}] [{bar:40.cyan/blue}] {bytes}/{total_bytes} ({eta})")
+                .unwrap()
+                .progress_chars("=>-"),
+        );
+        let mut data = Vec::new();
+        while left > 0 {
+            let mut buf = [0; 1024 * 1024];
+            let read = stream.read(&mut buf).unwrap();
+            pb.inc(read as u64);
+            data.extend_from_slice(&buf[..read]);
+            left = left.saturating_sub(read as u32);
+        }
+        pb.finish();
+        stream.shutdown(Shutdown::Both).unwrap();
+        let mut hasher = Sha256::new();
+        hasher.update(&data);
+        if hasher.finalize() != hash.into() {
+            panic!("Invalid hash");
+        }
+        data
+    }
+
+    fn convert_zip(self, buf: &[u8], mut status_stream: Option<&mut TcpStream>) -> Vec<u8> {
         let mut archive = ZipArchive::new(Cursor::new(buf)).unwrap();
         let mut files = Vec::new();
         for i in 0..archive.len() {
             files.push(archive.by_index(i).unwrap().name().to_owned());
         }
-        let file_count = files.len();
-        let mut files_data = vec![Vec::new(); file_count];
+        let total_count = files.len();
+        let file_count = files.iter().filter(|f| !f.ends_with('/')).count();
+        let mut files_data = vec![Vec::new(); total_count];
         let (tx, rx) = channel();
-        for i in 0..file_count {
+        for i in 0..total_count {
             let file = &files[i];
             if file.ends_with('/') {
                 continue;
@@ -96,6 +246,11 @@ impl Converter {
             file.read_to_end(&mut file_data).unwrap();
             let tx = tx.clone();
             spawn(move || self.convert_image(&file_data, tx, i));
+        }
+        if let Some(ref mut stream) = status_stream {
+            stream
+                .write_all((file_count as u32).to_be_bytes().as_ref())
+                .unwrap();
         }
         let pb = if self.quiet {
             ProgressBar::hidden()
@@ -114,11 +269,14 @@ impl Converter {
             files_data[id] = data;
             finished += 1;
             pb.inc(1);
+            if let Some(ref mut stream) = status_stream {
+                stream.write_all(b"plus").unwrap();
+            }
         }
         pb.finish();
         let mut data = Vec::new();
         let mut archive = ZipWriter::new(Cursor::new(&mut data));
-        for i in 0..file_count {
+        for i in 0..total_count {
             let file = &files[i];
             if file.ends_with('/') {
                 archive.add_directory(file, Default::default()).unwrap();
@@ -132,7 +290,7 @@ impl Converter {
         data
     }
 
-    fn convert_7z(self, buf: &[u8]) -> Vec<u8> {
+    fn convert_7z(self, buf: &[u8], mut status_stream: Option<&mut TcpStream>) -> Vec<u8> {
         let mut i = 0;
         let (tx, rx) = channel();
         let mut files = Vec::new();
@@ -154,6 +312,9 @@ impl Converter {
             })
             .unwrap();
         let mut files_data = vec![Vec::new(); i];
+        if let Some(ref mut stream) = status_stream {
+            stream.write_all((i as u32).to_be_bytes().as_ref()).unwrap();
+        }
         let pb = if self.quiet {
             ProgressBar::hidden()
         } else {
@@ -171,6 +332,9 @@ impl Converter {
             files_data[id] = data;
             finished += 1;
             pb.inc(1);
+            if let Some(ref mut stream) = status_stream {
+                stream.write_all(b"plus").unwrap();
+            }
         }
         pb.finish();
 
@@ -192,7 +356,7 @@ impl Converter {
         data
     }
 
-    fn convert_tar(self, buf: &[u8]) -> Vec<u8> {
+    fn convert_tar(self, buf: &[u8], mut status_stream: Option<&mut TcpStream>) -> Vec<u8> {
         let mut archive = TarArchive::new(buf);
         let entries = archive.entries().unwrap();
         let (tx, rx) = channel();
@@ -203,7 +367,6 @@ impl Converter {
             let header = entry.header().clone();
             headers.push(header);
             if entry.header().entry_type().is_dir() {
-                i += 1;
                 continue;
             }
             let mut file_data = Vec::with_capacity(entry.size() as usize);
@@ -211,6 +374,9 @@ impl Converter {
             let tx = tx.clone();
             spawn(move || self.convert_image(&file_data, tx, i));
             i += 1;
+        }
+        if let Some(ref mut stream) = status_stream {
+            stream.write_all((i as u32).to_be_bytes().as_ref()).unwrap();
         }
         let pb = if self.quiet {
             ProgressBar::hidden()
@@ -230,6 +396,9 @@ impl Converter {
             files_data[id] = data;
             finished += 1;
             pb.inc(1);
+            if let Some(ref mut stream) = status_stream {
+                stream.write_all(b"plus").unwrap();
+            }
         }
         pb.finish();
         let mut data = Vec::new();
