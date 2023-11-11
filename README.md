@@ -23,14 +23,14 @@ Usage: comiconv <files> [options]
 
 Options:
 
-  -h, --help		Print this help message
-  -v, --version		Print version
-  -s, --speed		Set speed 0 (Slowest) - 10 (Fastest) (0-2 for png) default: 3
-  -q, --quality		Set quality 0 (Worst) - 100 (Best) (101 for lossless webp) default: 30
-  -f, --format		Set format (avif, webp, jpeg, png) default: avif
-      --server      Set comiconv server address
-      --quiet       Suppress progress info
-      --backup      Retain original file as backup
+  -h, --help            Print this help message
+  -v, --version         Print version
+  -s, --speed           Set speed 0 (Slowest) - 10 (Fastest) (0-2 for png) default: 3
+  -q, --quality         Set quality 0 (Worst) - 100 (Best) default: 30
+  -f, --format          Set format (avif, webp, jpeg, png) default: avif
+      --quiet           Don't print progress
+      --backup          Create backup of original file
+      --server          Set server to use for online conversion
 ```
 
 ## Examples
