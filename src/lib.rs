@@ -16,7 +16,7 @@ use sha2::{Digest, Sha256};
 use std::{
     fs::{rename, File},
     io::{Cursor, Read, Write},
-    net::{TcpStream, Shutdown},
+    net::TcpStream,
     sync::mpsc::{channel, Sender},
     time::Duration,
 };
@@ -69,7 +69,7 @@ impl Converter {
         File::create(file).unwrap().write_all(&data).unwrap();
     }
 
-    pub fn convert_file_online(self, file: &str, addr: &str) {
+    pub fn convert_file_online(self, file: &str, stream: &mut TcpStream) {
         let buf = {
             let mut buf = Vec::new();
             File::open(file).unwrap().read_to_end(&mut buf).unwrap();
@@ -78,7 +78,7 @@ impl Converter {
         if !self.quiet {
             println!("Converting {}...", file);
         }
-        let data = self.convert_online(&buf, addr);
+        let data = self.convert_online(&buf, stream);
         if self.backup {
             rename(file, format!("{}.bak", file)).unwrap();
         }
@@ -96,10 +96,9 @@ impl Converter {
         }
     }
 
-    pub fn convert_online(mut self, buf: &[u8], addr: &str) -> Vec<u8> {
+    pub fn convert_online(mut self, buf: &[u8], stream: &mut TcpStream) -> Vec<u8> {
         self.speed = self.speed.clamp(0, 10);
         self.quality = self.quality.clamp(0, 100);
-        let mut stream = TcpStream::connect(addr).unwrap();
         stream.set_nodelay(true).unwrap();
         stream
             .set_read_timeout(Some(Duration::from_secs(10)))
@@ -217,7 +216,6 @@ impl Converter {
             left = left.saturating_sub(read as u32);
         }
         pb.finish();
-        stream.shutdown(Shutdown::Both).unwrap();
         let mut hasher = Sha256::new();
         hasher.update(&data);
         if hasher.finalize() != hash.into() {

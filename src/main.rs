@@ -1,3 +1,5 @@
+use std::net::{Shutdown, TcpStream};
+
 use comiconv::*;
 
 fn main() {
@@ -56,14 +58,20 @@ fn main() {
     }
     let mut i = 1;
     let len = files.len();
-    for file in files {
-        print!("[{}/{}] ", i, len);
-        if server.is_empty() {
+    if server.is_empty() {
+        for file in files {
+            print!("[{}/{}] ", i, len);
             converter.convert_file(file);
-        } else {
-            converter.convert_file_online(file, &server);
+            i += 1;
         }
-        i += 1;
+    } else {
+        let mut conn = TcpStream::connect(server).unwrap();
+        for file in files {
+            print!("[{}/{}] ", i, len);
+            converter.convert_file_online(file, &mut conn);
+            i += 1;
+        }
+        conn.shutdown(Shutdown::Both).unwrap();
     }
     println!("Done!");
 }
