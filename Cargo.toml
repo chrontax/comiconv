@@ -12,10 +12,10 @@ keywords = ["comic", "convert", "cbz", "cbt", "cb7"]
 categories = ["command-line-utilities"]
 
 [dependencies]
-image = { version = "0.24.7", default-features = false, features = ["png", "webp", "webp-encoder", "avif", "avif-encoder", "jpeg"] }
+image = { version = "0.24.7", default-features = false, features = ["png", "webp", "webp-encoder", "jpeg"] }
 indicatif = "0.17.7"
 infer = { version = "0.15.0", default-features = false }
-libavif-image = { version = "0.11.0", default-features = false, features = ["codec-dav1d"] }
+libavif-image = "0.11.0"
 rayon = "1.8.0"
 sevenz-rust = "0.5.3"
 sha2 = "0.10.8"

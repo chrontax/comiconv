@@ -1,6 +1,5 @@
 use image::{
     codecs::{
-        avif::AvifEncoder,
         jpeg::JpegEncoder,
         png::{CompressionType, FilterType, PngEncoder},
         webp::{WebPEncoder, WebPQuality},
@@ -9,7 +8,7 @@ use image::{
 };
 use indicatif::{ProgressBar, ProgressStyle};
 use infer::get;
-use libavif_image::{is_avif, read as read_avif};
+use libavif_image::{is_avif, read as read_avif, save as save_avif};
 use rayon::spawn;
 use sevenz_rust::{Password, SevenZReader, SevenZWriter};
 use sha2::{Digest, Sha256};
@@ -430,13 +429,9 @@ impl Converter {
         };
         let mut data = Vec::new();
         match self.format {
-            Format::Avif => image
-                .write_with_encoder(AvifEncoder::new_with_speed_quality(
-                    &mut data,
-                    self.speed,
-                    self.quality,
-                ))
-                .unwrap(),
+            Format::Avif => {
+                data = save_avif(&image).unwrap().to_vec();
+            },
             Format::Webp => image
                 .write_with_encoder(WebPEncoder::new_with_quality(
                     &mut data,
