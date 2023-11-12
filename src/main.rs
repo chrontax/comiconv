@@ -4,6 +4,7 @@ use comiconv::*;
 
 fn main() {
     let mut args = std::env::args();
+    args.next();
     let mut files = vec![];
     let mut converter = Converter::default();
     let mut server = String::new();
