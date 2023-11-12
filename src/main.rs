@@ -3,17 +3,12 @@ use std::net::{Shutdown, TcpStream};
 use comiconv::*;
 
 fn main() {
-    let args = std::env::args().collect::<Vec<String>>();
+    let mut args = std::env::args();
     let mut files = vec![];
     let mut converter = Converter::default();
     let mut server = String::new();
-    let mut skip = false;
-    for i in 1..args.len() {
-        if skip {
-            skip = false;
-            continue;
-        }
-        match args[i].as_str() {
+    while let Some(arg) = args.next() {
+        match arg.as_str() {
             "-h" | "--help" => {
                 print_help();
                 return;
@@ -22,16 +17,10 @@ fn main() {
                 println!("{}", env!("CARGO_PKG_VERSION"));
                 return;
             }
-            "-s" | "--speed" => {
-                converter.speed = args[i + 1].parse::<u8>().unwrap();
-                skip = true;
-            }
-            "-q" | "--quality" => {
-                converter.quality = args[i + 1].parse::<u8>().unwrap();
-                skip = true;
-            }
+            "-s" | "--speed" => converter.speed = args.next().unwrap().parse::<u8>().unwrap(),
+            "-q" | "--quality" => converter.quality = args.next().unwrap().parse::<u8>().unwrap(),
             "-f" | "--format" => {
-                converter.format = match args[i + 1].as_str() {
+                converter.format = match args.next().unwrap().as_str() {
                     "a" | "avif" => Format::Avif,
                     "w" | "webp" => Format::Webp,
                     "j" | "jpeg" => Format::Jpeg,
@@ -40,16 +29,12 @@ fn main() {
                         println!("Invalid format. Use --help or -h for help");
                         return;
                     }
-                };
-                skip = true;
+                }
             }
             "--quiet" => converter.quiet = true,
             "--backup" => converter.backup = true,
-            "--server" => {
-                server = args[i + 1].clone();
-                skip = true;
-            }
-            other => files.push(other),
+            "--server" => server = args.next().unwrap(),
+            _ => files.push(arg),
         }
     }
     if files.is_empty() {
@@ -61,14 +46,14 @@ fn main() {
     if server.is_empty() {
         for file in files {
             print!("[{}/{}] ", i, len);
-            converter.convert_file(file);
+            converter.convert_file(&file);
             i += 1;
         }
     } else {
         let mut conn = TcpStream::connect(server).unwrap();
         for file in files {
             print!("[{}/{}] ", i, len);
-            converter.convert_file_online(file, &mut conn);
+            converter.convert_file_online(&file, &mut conn);
             i += 1;
         }
         conn.shutdown(Shutdown::Both).unwrap();
