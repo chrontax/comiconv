@@ -16,6 +16,7 @@ use std::{
     fs::{rename, File},
     io::{Cursor, Read, Write},
     net::TcpStream,
+    str::FromStr,
     sync::mpsc::{channel, Sender},
     time::Duration,
 };
@@ -28,6 +29,20 @@ pub enum Format {
     Png,
     Webp,
     Avif,
+}
+
+impl FromStr for Format {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_ascii_lowercase().as_str() {
+            "avif" => Ok(Format::Avif),
+            "jpeg" | "jpg" => Ok(Format::Jpeg),
+            "webp" => Ok(Format::Webp),
+            "png" => Ok(Format::Png),
+            _ => Err(format!("Invalid format: {s}")),
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -431,7 +446,7 @@ impl Converter {
         match self.format {
             Format::Avif => {
                 data = save_avif(&image).unwrap().to_vec();
-            },
+            }
             Format::Webp => image
                 .write_with_encoder(WebPEncoder::new_with_quality(
                     &mut data,

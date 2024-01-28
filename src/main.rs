@@ -1,78 +1,72 @@
+use clap::{arg, command, value_parser, ArgAction};
 use std::net::{Shutdown, TcpStream};
 
 use comiconv::*;
 
 fn main() {
-    let mut args = std::env::args();
-    args.next();
-    let mut files = vec![];
-    let mut converter = Converter::default();
-    let mut server = String::new();
-    while let Some(arg) = args.next() {
-        match arg.as_str() {
-            "-h" | "--help" => {
-                print_help();
-                return;
-            }
-            "-v" | "--version" => {
-                println!("{}", env!("CARGO_PKG_VERSION"));
-                return;
-            }
-            "-s" | "--speed" => converter.speed = args.next().unwrap().parse::<u8>().unwrap(),
-            "-q" | "--quality" => converter.quality = args.next().unwrap().parse::<u8>().unwrap(),
-            "-f" | "--format" => {
-                converter.format = match args.next().unwrap().as_str() {
-                    "a" | "avif" => Format::Avif,
-                    "w" | "webp" => Format::Webp,
-                    "j" | "jpeg" => Format::Jpeg,
-                    "p" | "png" => Format::Png,
-                    _ => {
-                        println!("Invalid format. Use --help or -h for help");
-                        return;
-                    }
-                }
-            }
-            "--quiet" => converter.quiet = true,
-            "--backup" => converter.backup = true,
-            "--server" => server = args.next().unwrap(),
-            _ => files.push(arg),
-        }
+    let matches = command!()
+        .arg(
+            arg!(-s --speed <VALUE> "Set speed: 0 (Slowest) - 10 (Fastest) (0-2 for png)")
+                .required(false)
+                .value_parser(value_parser!(u8)),
+        )
+        .arg(
+            arg!(-q --quality <VALUE> "Set quality 0 (Worst) - 100 (Best)")
+                .required(false)
+                .value_parser(value_parser!(u8)),
+        )
+        .arg(
+            arg!(-f --format <VALUE>"Set format (avif, webp, jpeg, png)")
+                .required(false)
+                .value_parser(value_parser!(String)),
+        )
+        .arg(arg!(--quiet "Suppress progress messages").required(false))
+        .arg(arg!(--backup "Keep backup of original file").required(false))
+        .arg(
+            arg!(--server <ADDRESS> "Server for online conversion")
+                .required(false)
+                .value_parser(value_parser!(String)),
+        )
+        .arg(
+            arg!(<FILES> "Files to convert")
+                .action(ArgAction::Append)
+                .required(true),
+        )
+        .get_matches();
+    let mut converter = Converter {
+        quiet: matches.get_flag("quiet"),
+        backup: matches.get_flag("backup"),
+        ..Default::default()
+    };
+    if let Some(q) = matches.get_one::<u8>("quality") {
+        converter.quality = *q
     }
-    if files.is_empty() {
-        println!("No files specified. Use --help or -h for help");
-        return;
+    if let Some(f) = matches.get_one::<String>("format") {
+        converter.format = f.parse().unwrap()
     }
-    let mut i = 1;
+    if let Some(s) = matches.get_one::<u8>("speed") {
+        converter.speed = *s
+    }
+    let files = matches.get_many::<String>("FILES").unwrap().enumerate();
     let len = files.len();
-    if server.is_empty() {
-        for file in files {
-            print!("[{}/{}] ", i, len);
-            converter.convert_file(&file);
-            i += 1;
-        }
-    } else {
-        let mut conn = TcpStream::connect(server).unwrap();
-        for file in files {
-            print!("[{}/{}] ", i, len);
-            converter.convert_file_online(&file, &mut conn);
-            i += 1;
+    if let Some(addr) = matches.get_one::<String>("server") {
+        let mut conn = TcpStream::connect(addr).expect("Failed to connect to server");
+        for (i, file) in files {
+            if !converter.quiet {
+                print!("[{}/{}] ", i, len);
+            }
+            converter.convert_file_online(file, &mut conn);
         }
         conn.shutdown(Shutdown::Both).unwrap();
+    } else {
+        for (i, file) in files {
+            if !converter.quiet {
+                print!("[{}/{}] ", i, len);
+            }
+            converter.convert_file(file);
+        }
     }
-    println!("Done!");
-}
-
-fn print_help() {
-    println!("Usage: comiconv <files> [options]");
-    println!();
-    println!("Options:");
-    println!();
-    println!("  -h, --help\t\tPrint this help message");
-    println!("  -v, --version\t\tPrint version");
-    println!("  -s, --speed\t\tSet speed 0 (Slowest) - 10 (Fastest) (0-2 for png) default: 3");
-    println!("  -q, --quality\t\tSet quality 0 (Worst) - 100 (Best) default: 30");
-    println!("  -f, --format\t\tSet format (avif, webp, jpeg, png) default: avif");
-    println!("      --quiet\t\tDon't print progress");
-    println!("      --backup\t\tCreate backup of original file");
-    println!("      --server\t\tSet server to use for online conversion");
+    if !converter.quiet {
+        println!("Done!");
+    }
 }
