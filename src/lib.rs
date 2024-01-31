@@ -116,37 +116,39 @@ impl Converter {
     pub fn convert(
         mut self,
         buf: &[u8],
-        status_stream: Option<&mut TcpStream>,
+        mut status_stream: Option<&mut TcpStream>,
     ) -> ConvResult<Vec<u8>> {
         self.speed = self.speed.clamp(0, 10);
         self.quality = self.quality.clamp(0, 100);
         let mut archive = ArcReader::new(buf)?;
         let mut writer = ArcWriter::new(archive.format());
-        let status_stream = match status_stream {
-            None => None,
-            Some(stream) => Some(Arc::new(Mutex::new(stream))),
-        };
+        let file_count = archive
+            .by_ref()
+            .filter(|entry| {
+                if let ArcEntry::Directory(_) = entry {
+                    false
+                } else {
+                    true
+                }
+            })
+            .count();
+        if let Some(ref mut stream) = status_stream {
+            stream.write_all(&(file_count as u32).to_be_bytes())?;
+        }
         let mut bar = if self.quiet {
             ProgressBar::hidden()
         } else {
-            ProgressBar::new(
-                archive
-                    .by_ref()
-                    .filter(|entry| {
-                        if let ArcEntry::Directory(_) = entry {
-                            false
-                        } else {
-                            true
-                        }
-                    })
-                    .count() as u64,
-            )
+            ProgressBar::new(file_count as u64)
         };
         bar.set_style(
             ProgressStyle::default_bar()
                 .template("Convert  [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta})")?
                 .progress_chars("=>-"),
         );
+        let status_stream = match status_stream {
+            None => None,
+            Some(stream) => Some(Arc::new(Mutex::new(stream))),
+        };
         let pb = Arc::new(Mutex::new(&mut bar));
         writer.extend(
             &archive
