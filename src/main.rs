@@ -1,5 +1,8 @@
 use clap::{arg, command, value_parser, ArgAction};
-use std::net::{Shutdown, TcpStream};
+use std::{
+    io::Write,
+    net::{Shutdown, TcpStream},
+};
 
 use comiconv::*;
 
@@ -55,7 +58,28 @@ fn main() {
             if !converter.quiet {
                 print!("[{}/{}] ", i, len);
             }
-            converter.convert_file_online(file, &mut conn);
+            let mut done = false;
+            while !done {
+                match converter.convert_file_online(file, &mut conn) {
+                    Ok(()) => done = true,
+                    other => {
+                        println!("Error: {:?}", other);
+                        print!("Do you want to retry? [Y/n]: ");
+                        std::io::stdout().flush().unwrap();
+                        let mut str = String::new();
+                        std::io::stdin().read_line(&mut str).unwrap();
+                        match str.as_str() {
+                            "y\n" | "Y\n" | "\n" => {
+                                if let Err(ConvError::IoError(_)) = other {
+                                    conn = TcpStream::connect(addr)
+                                        .expect("Failed to connect to server");
+                                }
+                            }
+                            _ => done = true,
+                        }
+                    }
+                }
+            }
         }
         conn.shutdown(Shutdown::Both).unwrap();
     } else {
@@ -63,7 +87,23 @@ fn main() {
             if !converter.quiet {
                 print!("[{}/{}] ", i, len);
             }
-            converter.convert_file(file);
+            let mut done = false;
+            while !done {
+                match converter.convert_file(file) {
+                    Ok(()) => done = true,
+                    other => {
+                        println!("Error: {:?}", other);
+                        print!("Do you want to retry? [Y/n]: ");
+                        std::io::stdout().flush().unwrap();
+                        let mut str = String::new();
+                        std::io::stdin().read_line(&mut str).unwrap();
+                        match str.as_str() {
+                            "y\n" | "Y\n" | "\n" => (),
+                            _ => done = true,
+                        }
+                    }
+                }
+            }
         }
     }
     if !converter.quiet {
