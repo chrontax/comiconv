@@ -12,35 +12,40 @@ Comic book converter written in rust.
 ## Installation
 
 You can install comiconv through cargo:
-```bash
+
+``` sh
 cargo install comiconv
 ```
 
 ## Usage
 
-```bash
-Usage: comiconv <files> [options]
+``` sh
+Usage: comiconv [OPTIONS] <FILES>...
+
+Arguments:
+  <FILES>...  Files to convert
 
 Options:
-
-  -h, --help            Print this help message
-  -v, --version         Print version
-  -s, --speed           Set speed 0 (Slowest) - 10 (Fastest) (0-2 for png) default: 3
-  -q, --quality         Set quality 0 (Worst) - 100 (Best) default: 30
-  -f, --format          Set format (avif, webp, jpeg, png) default: avif
-      --quiet           Don't print progress
-      --backup          Create backup of original file
-      --server          Set server to use for online conversion
+  -s, --speed <VALUE>     Set speed: 0 (Slowest) - 10 (Fastest) (0-2 for png)
+  -q, --quality <VALUE>   Set quality 0 (Worst) - 100 (Best)
+  -f, --format <VALUE>    Set format (avif, webp, jpeg, png)
+      --quiet             Suppress progress messages
+      --backup            Keep backup of original file
+      --server <ADDRESS>  Server for online conversion
+  -h, --help              Print help
+  -V, --version           Print version
 ```
 
 ## Examples
 
 Convert using default settings:
-```bash
+
+``` sh
 comiconv path/to/file
 ```
 
 Convert to jpeg with quality 80:
-```bash
-comiconv paht/to/file -f jpeg -q 80
+
+``` sh
+comiconv -f jpeg -q 80 path/to/file
 ```
