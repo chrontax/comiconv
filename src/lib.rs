@@ -1,3 +1,7 @@
+//! Library for comic book conversion.
+//!
+//! You can convert locally or on a server running comiconv-server.
+
 use cra::{ArcEntry, ArcError, ArcReader, ArcWriter};
 use image::{
     codecs::{
@@ -21,6 +25,7 @@ use std::{
 };
 use thiserror::Error;
 
+/// This is the main error type for the library
 #[derive(Error, Debug)]
 #[error(transparent)]
 pub enum ConvError {
@@ -35,6 +40,7 @@ pub enum ConvError {
 
 pub type ConvResult<T> = Result<T, ConvError>;
 
+/// Enum representing all supported target image formats
 #[derive(Clone, Copy, Debug)]
 pub enum Format {
     Jpeg,
@@ -57,6 +63,7 @@ impl FromStr for Format {
     }
 }
 
+/// This is the main struct for converting
 #[derive(Clone, Copy, Debug)]
 pub struct Converter {
     pub quality: u8,
@@ -79,6 +86,7 @@ impl Default for Converter {
 }
 
 impl Converter {
+    /// Takes a path to a file and converts it
     pub fn convert_file(self, file: &str) -> ConvResult<()> {
         let buf = {
             let mut buf = Vec::new();
@@ -96,6 +104,7 @@ impl Converter {
         Ok(())
     }
 
+    /// Takes a path to a file, a tcp connection and converts the file using a server
     pub fn convert_file_online(self, file: &str, stream: &mut TcpStream) -> ConvResult<()> {
         let buf = {
             let mut buf = Vec::new();
@@ -113,6 +122,8 @@ impl Converter {
         Ok(())
     }
 
+    /// Takes contents of a file as a slice of bytes and return the new converted file as bytes.
+    /// Optionally takes a stream to write progress information for the client (only really used by the server).
     pub fn convert(
         mut self,
         buf: &[u8],
@@ -172,6 +183,7 @@ impl Converter {
         Ok(writer.archive()?)
     }
 
+    /// Takes file contents as a slice and a tcp connection to the server
     pub fn convert_online(mut self, buf: &[u8], stream: &mut TcpStream) -> ConvResult<Vec<u8>> {
         self.speed = self.speed.clamp(0, 10);
         self.quality = self.quality.clamp(0, 100);
