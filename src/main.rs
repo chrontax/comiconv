@@ -14,7 +14,7 @@ fn main() {
                 .value_parser(value_parser!(u8)),
         )
         .arg(
-            arg!(-q --quality <VALUE> "Set quality 0 (Worst) - 100 (Best)")
+            arg!(-q --quality <VALUE> "Set quality 0 (Worst) - 100 (Best) (ignored for webp, it's always lossless)")
                 .required(false)
                 .value_parser(value_parser!(u8)),
         )

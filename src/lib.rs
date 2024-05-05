@@ -7,7 +7,7 @@ use image::{
     codecs::{
         jpeg::JpegEncoder,
         png::{CompressionType, FilterType, PngEncoder},
-        webp::{WebPEncoder, WebPQuality},
+        webp::WebPEncoder,
     },
     io::Reader as ImageReader,
 };
@@ -64,6 +64,7 @@ impl FromStr for Format {
 }
 
 /// This is the main struct for converting
+/// `quality` is ignored for webp
 #[derive(Clone, Copy, Debug)]
 pub struct Converter {
     pub quality: u8,
@@ -323,10 +324,7 @@ impl Converter {
                 data = save_avif(&image).unwrap().to_vec();
             }
             Format::Webp => image
-                .write_with_encoder(WebPEncoder::new_with_quality(
-                    &mut data,
-                    WebPQuality::lossy(self.quality),
-                ))
+                .write_with_encoder(WebPEncoder::new_lossless(&mut data))
                 .unwrap(),
             Format::Png => image
                 .write_with_encoder(PngEncoder::new_with_quality(
