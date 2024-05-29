@@ -10,9 +10,10 @@ use image::{
         webp::WebPEncoder,
     },
     io::Reader as ImageReader,
+    ImageError,
 };
 use indicatif::{style::TemplateError, ProgressBar, ProgressStyle};
-use libavif_image::{is_avif, read as read_avif, save as save_avif};
+use libavif_image::{is_avif, read as read_avif, save as save_avif, Error as AvifError};
 use rayon::prelude::{IntoParallelIterator, ParallelIterator};
 use sha2::{Digest, Sha256};
 use std::{
@@ -32,6 +33,8 @@ pub enum ConvError {
     ArcError(#[from] ArcError),
     IoError(#[from] io::Error),
     TemplateError(#[from] TemplateError),
+    AvifError(#[from] AvifError),
+    ImageError(#[from] ImageError),
     #[error("Invalid server response")]
     InvalidResponse,
     #[error("Hash mismatch")]
@@ -167,18 +170,20 @@ impl Converter {
                 .entries()
                 .clone()
                 .into_par_iter()
-                .map(|entry| match entry {
-                    ArcEntry::File(name, data) => {
-                        let data = self.convert_image(&data);
-                        if let Some(stream) = status_stream.clone() {
-                            stream.lock().unwrap().write_all(b"plus").unwrap()
+                .map(|entry| {
+                    Ok(match entry {
+                        ArcEntry::File(name, data) => {
+                            let data = self.convert_image(&data)?;
+                            if let Some(stream) = status_stream.clone() {
+                                stream.lock().unwrap().write_all(b"plus")?
+                            }
+                            pb.clone().lock().unwrap().inc(1);
+                            ArcEntry::File(name, data)
                         }
-                        pb.clone().lock().unwrap().inc(1);
-                        ArcEntry::File(name, data)
-                    }
-                    other => other,
+                        other => other,
+                    })
                 })
-                .collect::<Vec<ArcEntry>>(),
+                .collect::<ConvResult<Vec<ArcEntry>>>()?,
         );
         bar.finish();
         Ok(writer.archive()?)
@@ -308,40 +313,34 @@ impl Converter {
         Ok(data)
     }
 
-    fn convert_image(self, buf: &[u8]) -> Vec<u8> {
+    fn convert_image(self, buf: &[u8]) -> ConvResult<Vec<u8>> {
         let image = if is_avif(buf) {
-            read_avif(buf).unwrap()
+            read_avif(buf)?
         } else {
             ImageReader::new(Cursor::new(buf))
-                .with_guessed_format()
-                .unwrap()
-                .decode()
-                .unwrap()
+                .with_guessed_format()?
+                .decode()?
         };
         let mut data = Vec::new();
         match self.format {
             Format::Avif => {
-                data = save_avif(&image).unwrap().to_vec();
+                data = save_avif(&image)?.to_vec();
             }
-            Format::Webp => image
-                .write_with_encoder(WebPEncoder::new_lossless(&mut data))
-                .unwrap(),
-            Format::Png => image
-                .write_with_encoder(PngEncoder::new_with_quality(
-                    &mut data,
-                    match self.speed.clamp(0, 2) {
-                        0 => CompressionType::Fast,
-                        1 => CompressionType::Default,
-                        2 => CompressionType::Best,
-                        _ => unreachable!(),
-                    },
-                    FilterType::Adaptive,
-                ))
-                .unwrap(),
-            Format::Jpeg => image
-                .write_with_encoder(JpegEncoder::new_with_quality(&mut data, self.quality))
-                .unwrap(),
+            Format::Webp => image.write_with_encoder(WebPEncoder::new_lossless(&mut data))?,
+            Format::Png => image.write_with_encoder(PngEncoder::new_with_quality(
+                &mut data,
+                match self.speed.clamp(0, 2) {
+                    0 => CompressionType::Fast,
+                    1 => CompressionType::Default,
+                    2 => CompressionType::Best,
+                    _ => unreachable!(),
+                },
+                FilterType::Adaptive,
+            ))?,
+            Format::Jpeg => {
+                image.write_with_encoder(JpegEncoder::new_with_quality(&mut data, self.quality))?
+            }
         }
-        data
+        Ok(data)
     }
 }
