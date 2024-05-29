@@ -139,13 +139,7 @@ impl Converter {
         let mut writer = ArcWriter::new(archive.format());
         let file_count = archive
             .by_ref()
-            .filter(|entry| {
-                if let ArcEntry::Directory(_) = entry {
-                    false
-                } else {
-                    true
-                }
-            })
+            .filter(|entry| !matches!(entry, ArcEntry::Directory(_)))
             .count();
         if let Some(ref mut stream) = status_stream {
             stream.write_all(&(file_count as u32).to_be_bytes())?;
@@ -160,10 +154,7 @@ impl Converter {
                 .template("Convert  [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta})")?
                 .progress_chars("=>-"),
         );
-        let status_stream = match status_stream {
-            None => None,
-            Some(stream) => Some(Arc::new(Mutex::new(stream))),
-        };
+        let status_stream = status_stream.map(|stream| Arc::new(Mutex::new(stream)));
         let pb = Arc::new(Mutex::new(&mut bar));
         writer.extend(
             &archive
