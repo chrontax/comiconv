@@ -9,10 +9,11 @@ use image::{
         png::{CompressionType, FilterType, PngEncoder},
         webp::WebPEncoder,
     },
-    io::Reader as ImageReader,
-    ImageError,
+    ColorType, DynamicImage, ImageError, ImageReader,
 };
 use indicatif::{style::TemplateError, ProgressBar, ProgressStyle};
+use infer::image::is_jxl;
+use jxl_oxide::integration::JxlDecoder;
 use libavif_image::{is_avif, read as read_avif, save as save_avif, Error as AvifError};
 use rayon::prelude::{IntoParallelIterator, ParallelIterator};
 use sha2::{Digest, Sha256};
@@ -25,6 +26,8 @@ use std::{
     time::Duration,
 };
 use thiserror::Error;
+use zune_core::{bit_depth::BitDepth, colorspace::ColorSpace, options::EncoderOptions};
+use zune_jpegxl::{JxlEncodeErrors, JxlSimpleEncoder};
 
 /// This is the main error type for the library
 #[derive(Error, Debug)]
@@ -35,6 +38,8 @@ pub enum ConvError {
     TemplateError(#[from] TemplateError),
     AvifError(#[from] AvifError),
     ImageError(#[from] ImageError),
+    #[error("{0:?}")]
+    JxlEncodeError(JxlEncodeErrors),
     #[error("Invalid server response")]
     InvalidResponse,
     #[error("Hash mismatch")]
@@ -47,6 +52,7 @@ pub type ConvResult<T> = Result<T, ConvError>;
 #[derive(Clone, Copy, Debug)]
 pub enum Format {
     Jpeg,
+    JpegXL,
     Png,
     Webp,
     Avif,
@@ -59,6 +65,7 @@ impl FromStr for Format {
         match s.to_ascii_lowercase().as_str() {
             "avif" => Ok(Format::Avif),
             "jpeg" | "jpg" => Ok(Format::Jpeg),
+            "jxl" => Ok(Format::JpegXL),
             "webp" => Ok(Format::Webp),
             "png" => Ok(Format::Png),
             _ => Err(format!("Invalid format: {s}")),
@@ -199,6 +206,7 @@ impl Converter {
             Format::Webp => b'W',
             Format::Png => b'P',
             Format::Jpeg => b'J',
+            Format::JpegXL => todo!(),
         };
         let mut left = buf.len();
         {
@@ -307,6 +315,8 @@ impl Converter {
     fn convert_image(self, buf: &[u8]) -> ConvResult<Vec<u8>> {
         let image = if is_avif(buf) {
             read_avif(buf)?
+        } else if is_jxl(buf) {
+            DynamicImage::from_decoder(JxlDecoder::new(buf)?)?
         } else {
             ImageReader::new(Cursor::new(buf))
                 .with_guessed_format()?
@@ -331,7 +341,32 @@ impl Converter {
             Format::Jpeg => {
                 image.write_with_encoder(JpegEncoder::new_with_quality(&mut data, self.quality))?
             }
+            Format::JpegXL => {
+                let (color, depth) = image_to_zune_colot_type(&image);
+                data = JxlSimpleEncoder::new(
+                    image.as_bytes(),
+                    EncoderOptions::new(image.width() as _, image.height() as _, color, depth),
+                )
+                .encode()
+                .map_err(ConvError::JxlEncodeError)?;
+            }
         }
         Ok(data)
+    }
+}
+
+fn image_to_zune_colot_type(image: &DynamicImage) -> (ColorSpace, BitDepth) {
+    match image.color() {
+        ColorType::L8 => (ColorSpace::Luma, BitDepth::Eight),
+        ColorType::La16 => (ColorSpace::LumaA, BitDepth::Sixteen),
+        ColorType::Rgb16 => (ColorSpace::RGB, BitDepth::Sixteen),
+        ColorType::Rgba16 => (ColorSpace::RGBA, BitDepth::Sixteen),
+        ColorType::Rgb32F => (ColorSpace::RGB, BitDepth::Float32),
+        ColorType::Rgba32F => (ColorSpace::RGBA, BitDepth::Float32),
+        ColorType::Rgba8 => (ColorSpace::RGBA, BitDepth::Eight),
+        ColorType::L16 => (ColorSpace::Luma, BitDepth::Sixteen),
+        ColorType::La8 => (ColorSpace::LumaA, BitDepth::Eight),
+        ColorType::Rgb8 => (ColorSpace::RGB, BitDepth::Eight),
+        _ => unimplemented!(),
     }
 }

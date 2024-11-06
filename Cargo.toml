@@ -24,6 +24,10 @@ rayon = "1.8.0"
 sha2 = "0.10.8"
 cra = "0.1.2"
 thiserror = "1.0.56"
+jxl-oxide = { version = "0.10.0", features = ["image"] }
+infer = "0.16.0"
+zune-jpegxl = "0.4.0"
+zune-core = "0.4.12"
 
 [lib]
 path = "src/lib.rs"
