@@ -18,6 +18,7 @@ use libavif_image::{is_avif, read as read_avif, save as save_avif, Error as Avif
 use rayon::prelude::{IntoParallelIterator, ParallelIterator};
 use sha2::{Digest, Sha256};
 use std::{
+    fmt::Display,
     fs::{rename, File},
     io::{self, Cursor, Read, Write},
     net::TcpStream,
@@ -58,9 +59,9 @@ pub enum Format {
     Avif,
 }
 
-impl ToString for Format {
-    fn to_string(&self) -> String {
-        String::from(match self {
+impl Display for Format {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
             Format::Jpeg => "jpg",
             Format::JpegXL => "jxl",
             Format::Png => "png",
@@ -152,7 +153,6 @@ impl Converter {
         buf: &[u8],
         mut status_stream: Option<&mut TcpStream>,
     ) -> ConvResult<Vec<u8>> {
-        let format_extension = self.format.to_string();
         self.speed = self.speed.clamp(0, 10);
         self.quality = self.quality.clamp(0, 100);
         let mut archive = ArcReader::new(buf)?;
@@ -193,7 +193,7 @@ impl Converter {
                                 format!(
                                     "{}.{}",
                                     name.rsplit_once('.').unwrap_or((&name, "")).0,
-                                    &format_extension
+                                    self.format
                                 ),
                                 data,
                             )
