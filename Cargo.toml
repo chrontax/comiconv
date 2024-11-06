@@ -19,7 +19,7 @@ image = { version = "0.25.1", default-features = false, features = [
   "jpeg",
 ] }
 indicatif = "0.17.7"
-libavif-image = "0.13.0"
+libavif-image = "0.14.0"
 rayon = "1.8.0"
 sha2 = "0.10.8"
 cra = "0.1.2"
