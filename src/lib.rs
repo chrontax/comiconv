@@ -58,6 +58,18 @@ pub enum Format {
     Avif,
 }
 
+impl ToString for Format {
+    fn to_string(&self) -> String {
+        String::from(match self {
+            Format::Jpeg => "jpg",
+            Format::JpegXL => "jxl",
+            Format::Png => "png",
+            Format::Webp => "webp",
+            Format::Avif => "avif",
+        })
+    }
+}
+
 impl FromStr for Format {
     type Err = String;
 
@@ -140,6 +152,7 @@ impl Converter {
         buf: &[u8],
         mut status_stream: Option<&mut TcpStream>,
     ) -> ConvResult<Vec<u8>> {
+        let format_extension = self.format.to_string();
         self.speed = self.speed.clamp(0, 10);
         self.quality = self.quality.clamp(0, 100);
         let mut archive = ArcReader::new(buf)?;
@@ -176,7 +189,14 @@ impl Converter {
                                 stream.lock().unwrap().write_all(b"plus")?
                             }
                             pb.clone().lock().unwrap().inc(1);
-                            ArcEntry::File(name, data)
+                            ArcEntry::File(
+                                format!(
+                                    "{}.{}",
+                                    name.rsplit_once('.').unwrap_or((&name, "")).0,
+                                    &format_extension
+                                ),
+                                data,
+                            )
                         }
                         other => other,
                     })
