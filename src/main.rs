@@ -19,7 +19,7 @@ fn main() {
                 .value_parser(value_parser!(u8)),
         )
         .arg(
-            arg!(-f --format <VALUE>"Set format (avif, webp, jpeg, png)")
+            arg!(-f --format <VALUE>"Set format (avif, webp, jpeg, jxl, png)")
                 .required(false)
                 .value_parser(value_parser!(String)),
         )
