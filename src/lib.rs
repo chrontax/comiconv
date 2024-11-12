@@ -357,9 +357,9 @@ impl Converter {
                 },
                 FilterType::Adaptive,
             ))?,
-            Format::Jpeg => {
-                image.write_with_encoder(JpegEncoder::new_with_quality(&mut data, self.quality))?
-            }
+            Format::Jpeg => image
+                .into_rgb8()
+                .write_with_encoder(JpegEncoder::new_with_quality(&mut data, self.quality))?,
             Format::JpegXL => {
                 let (color, depth) = image_to_zune_colot_type(&image);
                 data = JxlSimpleEncoder::new(
