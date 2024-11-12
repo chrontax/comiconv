@@ -1,6 +1,6 @@
 [package]
 name = "comiconv"
-version = "0.3.3"
+version = "0.4.0"
 edition = "2021"
 authors = ["Chrontax"]
 description = "A command line tool to convert comic book archives to other formats."
@@ -9,7 +9,7 @@ homepage = "https://github.com/chrontax/comiconv"
 repository = "https://github.com/chrontax/comiconv"
 license = "Apache-2.0 OR MIT"
 keywords = ["comic", "convert", "cbz", "cbt", "cb7"]
-categories = ["command-line-utilities"]
+categories = ["command-line-utilities", "encoding"]
 
 [dependencies]
 clap = { version = "4.4.18", features = ["cargo"] }
@@ -22,8 +22,8 @@ indicatif = "0.17.7"
 libavif-image = "0.14.0"
 rayon = "1.8.0"
 sha2 = "0.10.8"
-cra = "0.1.2"
-thiserror = "1.0.56"
+cra = "0.1.4"
+thiserror = "2.0.3"
 jxl-oxide = { version = "0.10.0", features = ["image"] }
 infer = "0.16.0"
 zune-jpegxl = "0.4.0"
