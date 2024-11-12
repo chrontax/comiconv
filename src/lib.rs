@@ -179,12 +179,11 @@ impl Converter {
         writer.extend(
             &archive
                 .entries()
-                .clone()
                 .into_par_iter()
                 .map(|entry| {
                     Ok(match entry {
                         ArcEntry::File(name, data) => {
-                            let data = self.convert_image(&data)?;
+                            let data = self.convert_image(data)?;
                             if let Some(stream) = status_stream.clone() {
                                 stream.lock().unwrap().write_all(b"plus")?
                             }
@@ -192,13 +191,13 @@ impl Converter {
                             ArcEntry::File(
                                 format!(
                                     "{}.{}",
-                                    name.rsplit_once('.').unwrap_or((&name, "")).0,
+                                    name.rsplit_once('.').unwrap_or((name, "")).0,
                                     self.format
                                 ),
                                 data,
                             )
                         }
-                        other => other,
+                        other => other.clone(),
                     })
                 })
                 .collect::<ConvResult<Vec<ArcEntry>>>()?,
